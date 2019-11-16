@@ -370,18 +370,25 @@ def generate_message(contract: Contract, condition_kwargs: Mapping[str, Any]) ->
         # lambdas.
 
         # Find the line corresponding to the condition lambda
-        lines, condition_lineno = inspect.findsource(contract.condition)
-        filename = inspect.getsourcefile(contract.condition)
+        try:
+            lines, condition_lineno = inspect.findsource(contract.condition)
+        except OSError:
+            # Inspect.findsource will raise OSError if the source cannot be located.
+            # This was triggered by a lambda make with an eval.
+            condition_text = None
+        else:
+            filename = inspect.getsourcefile(contract.condition)
 
-        decorator_inspection = inspect_decorator(lines=lines, lineno=condition_lineno, filename=filename)
-        lambda_inspection = find_lambda_condition(decorator_inspection=decorator_inspection)
+            decorator_inspection = inspect_decorator(lines=lines, lineno=condition_lineno, filename=filename)
+            lambda_inspection = find_lambda_condition(decorator_inspection=decorator_inspection)
 
-        assert lambda_inspection is not None, \
-            "Expected lambda_inspection to be non-None if _is_lambda is True on: {}".format(contract.condition)
+            assert lambda_inspection is not None, \
+                "Expected lambda_inspection to be non-None if _is_lambda is True on: {}".format(contract.condition)
 
-        condition_text = lambda_inspection.text
+            condition_text = lambda_inspection.text
 
-    parts.append(condition_text)
+    if condition_text is not None:
+        parts.append(condition_text)
 
     repr_vals = repr_values(
         condition=contract.condition,
